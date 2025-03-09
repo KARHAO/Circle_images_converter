@@ -527,6 +527,8 @@ def main():
                   '支持三种转换模式：默认模式、四角相切模式和人脸检测模式',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
+以下是帮助指令和示例:
+
 使用示例:
   # 使用默认设置（500px，PNG格式）
   python circle_image_converter.py
