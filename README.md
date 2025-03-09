@@ -2,6 +2,12 @@
 
 一个功能强大的图片转换工具，可以将各种格式的图片转换为带透明背景的圆形图片。
 
+## 最新功能
+✅ 多特征检测（人脸/眼睛/宠物）  
+✅ 智能安全边距计算  
+✅ 中文字符路径支持  
+✅ 三种专业处理模式
+
 ## 功能特点
 
 - 支持多种输入格式：PNG, JPG, JPEG, BMP, GIF, WebP, TIFF, JFIF
@@ -17,10 +23,12 @@
 - 自动选择输入输出文件夹
 - 处理完成后自动打开输出文件夹
 
-## 安装要求
+## 环境要求
+- Python 3.8 或更高版本
+- OpenCV 4.5+
+- Pillow 9.0+
 
-1. Python 3.8 或更高版本
-2. 安装依赖：
+## 安装方法
 ```bash
 pip install -r requirements.txt
 ```
@@ -71,7 +79,27 @@ python circle_image_converter.py --face
 python circle_image_converter.py --output-format WEBP
 ```
 
-### 输出说明
+### 高级示例
+```bash
+# 智能模式（自动检测特征）
+python circle_image_converter.py --input input.jpg --output output.png --face
+
+# 批量处理目录
+python circle_image_converter.py --input ./photos --output ./results --size 800
+
+# 四角相切模式
+python circle_image_converter.py --input image.jpg --fit
+```
+
+## 参数说明
+| 参数 | 描述 |
+|------|------|
+| `--face` | 智能居中模式（检测人脸/眼睛/宠物） |
+| `--fit` | 四角相切模式（保持原图比例） |
+| `--size` | 输出尺寸（默认500） |
+| `--dpi` | 打印分辨率（默认300） |
+
+## 输出说明
 
 处理后的图片将根据使用的模式添加相应前缀：
 - 默认模式：`default_`
