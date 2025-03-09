@@ -1,9 +1,9 @@
 #所需依赖
 
 # 图像处理核心库
-Pillow>=10.0.0    # PIL库，用于基础图像处理
-opencv-python>=4.8.0    # OpenCV库，用于人脸检测
-numpy>=1.24.0    # 数值计算库，OpenCV依赖
+opencv-contrib-python>=4.5.0  # 核心图像处理库
+Pillow>=9.0.0  # 图片读写和基础处理
+numpy>=1.21.0  # 数值计算支持
+python-dotenv>=0.19.0  # 环境变量管理（预留）
 
-# 可选依赖
-tkinter    # GUI组件，用于文件夹选择（通常随Python安装）
+# 注意：tkinter 是 Python 标准库，无需单独安装
