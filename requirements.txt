@@ -1,0 +1,7 @@
+# 图像处理核心库
+Pillow>=10.0.0    # PIL库，用于基础图像处理
+opencv-python>=4.8.0    # OpenCV库，用于人脸检测
+numpy>=1.24.0    # 数值计算库，OpenCV依赖
+
+# 可选依赖
+tkinter    # GUI组件，用于文件夹选择（通常随Python安装）
