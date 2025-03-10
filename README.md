@@ -1,120 +1,107 @@
-# Circle_images_converter 圆形图片转换工具
+# 圆形图片转换工具
 
-一个功能强大的图片转换工具，可以将各种格式的图片转换为带透明背景的圆形图片。
+一个功能强大的图片处理工具，可以将各种格式的图片转换为带透明背景的圆形图片。支持批量处理，人脸检测，多种输出格式等功能。
 
-## 最新功能
-✅ 多特征检测（人脸/眼睛/宠物）  
-✅ 智能安全边距计算  
-✅ 中文字符路径支持  
-✅ 三种专业处理模式
+## 主要特性
 
-## 功能特点
-
-- 支持多种输入格式：PNG, JPG, JPEG, BMP, GIF, WebP, TIFF, JFIF
-- 支持多种输出格式：PNG, BMP, TIFF, WebP（推荐使用PNG以保持透明背景）
-- 支持三种转换模式：
+- 支持多种图片格式转换
+- 三种转换模式：
   - 默认模式：根据长边等比例缩放并相切
-  - 四角相切模式（--fit）：图片完整显示，四角与圆形相切
-  - 人脸检测模式（--face）：自动检测人脸并居中，图片填满圆形区域
-- 支持多种尺寸单位：像素(px)、毫米(mm)、厘米(cm)
-- 支持自定义DPI，影响最终输出分辨率
+  - 四角相切模式：图片完整显示，四角与圆形相切
+  - 人脸检测模式：智能检测人脸位置并居中
+- 智能人脸处理：
+  - 自动检测人脸位置
+  - 智能调整安全边距
+  - 多人脸场景优化
+  - 保持人脸居中显示
 - 支持批量处理整个文件夹的图片
-- 带有友好的命令行界面
-- 自动选择输入输出文件夹
-- 处理完成后自动打开输出文件夹
+- 图形界面选择输入输出文件夹
+- 可自定义输出尺寸和DPI
+- 支持多种尺寸单位（像素、毫米、厘米）
 
-## 环境要求
-- Python 3.8 或更高版本
-- OpenCV 4.5+
-- Pillow 9.0+
+## 支持的格式
 
-## 安装方法
+### 输入格式
+- JPG/JPEG
+- PNG
+- BMP
+- WEBP
+- GIF
+- TIFF
+- JFIF
+
+### 输出格式
+- PNG（推荐，支持透明背景）
+- JPEG
+- BMP
+- WEBP
+- TIFF
+- JFIF
+
+## 安装说明
+
+1. 确保已安装 Python 3.6 或更高版本
+2. 克隆或下载本项目
+3. 安装依赖包：
 ```bash
 pip install -r requirements.txt
 ```
 
 ## 使用方法
 
-基本用法：
-```bash
-python circle_image_converter.py [选项]
-```
-
-### 命令行选项
-
-- `--size`：设置圆形画布尺寸，支持以下格式：
-  - 像素：500px（默认）
-  - 毫米：50mm
-  - 厘米：5cm
-- `--dpi`：设置输出图片DPI，默认300
-- `--fit`：启用四角相切模式
-- `--face`：启用人脸检测和居中模式
-- `--input-format`：指定输入图片格式，默认PNG
-- `--output-format`：指定输出图片格式，默认PNG
-
-### 使用示例
-
-1. 使用默认设置（500px，PNG格式）：
+### 基本使用
 ```bash
 python circle_image_converter.py
 ```
+运行后会弹出文件夹选择对话框，选择输入和输出文件夹即可。
 
-2. 指定尺寸为5厘米，DPI为300：
+### 命令行参数
 ```bash
-python circle_image_converter.py --size 5cm --dpi 300
+# 使用默认设置（500px，PNG格式）
+python circle_image_converter.py
+
+# 指定输出尺寸为1000像素，使用四角相切模式
+python circle_image_converter.py --size 1000px --fit
+
+# 使用人脸检测模式，输出为300DPI的JPEG格式
+python circle_image_converter.py --face --dpi 300 --output-format JPEG
 ```
 
-3. 使用四角相切模式：
-```bash
-python circle_image_converter.py --fit
-```
-
-4. 使用人脸检测模式：
-```bash
-python circle_image_converter.py --face
-```
-
-5. 指定输出格式为WebP：
-```bash
-python circle_image_converter.py --output-format WEBP
-```
-
-### 高级示例
-```bash
-# 智能模式（自动检测特征）
-python circle_image_converter.py --input input.jpg --output output.png --face
-
-# 批量处理目录
-python circle_image_converter.py --input ./photos --output ./results --size 800
-
-# 四角相切模式
-python circle_image_converter.py --input image.jpg --fit
-```
-
-## 参数说明
-| 参数 | 描述 |
-|------|------|
-| `--face` | 智能居中模式（检测人脸/眼睛/宠物） |
-| `--fit` | 四角相切模式（保持原图比例） |
-| `--size` | 输出尺寸（默认500） |
-| `--dpi` | 打印分辨率（默认300） |
-
-## 输出说明
-
-处理后的图片将根据使用的模式添加相应前缀：
-- 默认模式：`default_`
-- 四角相切模式：`fit_`
-- 人脸检测模式：`face_`
-
-例如：`photo.jpg` 在人脸检测模式下处理后将变为 `face_photo.png`
+### 参数说明
+- `--size`：设置圆形画布尺寸（如：500px、50mm、5cm）
+- `--dpi`：设置输出图片DPI，默认300
+- `--fit`：启用四角相切模式
+- `--face`：启用人脸检测模式
+- `--input-format`：指定输入图片格式
+- `--output-format`：指定输出图片格式
 
 ## 注意事项
 
-1. 为保持透明背景，建议使用PNG格式输出
-2. 人脸检测模式可能不会检测到某些图片中的人脸，此时将使用图片中心
-3. 建议输入图片分辨率不要过小，以确保输出质量
-4. 使用TIFF或PNG格式可以保持透明背景，其他格式将使用白色背景
+1. 人脸检测模式会自动调整裁剪区域，确保人脸居中且不被裁切
+2. 对于多人脸场景，程序会自动增加安全边距
+3. 输出文件名会根据处理模式自动添加前缀：
+   - 默认模式：default_
+   - 四角相切模式：fit_
+   - 人脸检测模式：face_
 
-## 技术支持
+## 系统要求
 
-如有问题或建议，请提交Issue。
+- Windows/Linux/MacOS
+- Python 3.6+
+- 足够的系统内存（建议4GB以上）
+- 支持图形界面（用于文件夹选择）
+
+## 常见问题
+
+1. **Q: 为什么某些图片无法检测到人脸？**  
+   A: 人脸检测依赖于图片质量、角度和光线等因素。如果检测失败，程序会自动使用图片中心作为参考点。
+
+2. **Q: 输出图片大小和预期不符？**  
+   A: 请检查DPI设置，实际输出像素 = 设定尺寸 * (DPI/300)
+
+3. **Q: 如何选择最佳输出格式？**  
+   A: 推荐使用PNG格式，可以保持透明背景。如果不需要透明背景，可以使用JPEG格式以获得更小的文件大小。
+
+## 许可证
+
+MIT License
