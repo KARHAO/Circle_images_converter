@@ -1,9 +1,10 @@
 #所需依赖
 
 # 图像处理核心库
-opencv-contrib-python>=4.5.0  # 核心图像处理库
+opencv-python>=4.5.0  # 核心图像处理库
 Pillow>=9.0.0  # 图片读写和基础处理
-numpy>=1.21.0  # 数值计算支持
+numpy>=1.19.0  # 数值计算支持
 python-dotenv>=0.19.0  # 环境变量管理（预留）
+tk>=0.1.0
 
 # 注意：tkinter 是 Python 标准库，无需单独安装
