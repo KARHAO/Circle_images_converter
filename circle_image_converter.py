@@ -254,7 +254,14 @@ def create_circular_image(input_path, output_path, size=(500, 500), dpi=300, fit
     创建圆形图片，支持三种模式：
     1. 默认模式：根据长边等比例缩放并相切
     2. 四角相切模式(fit_corners=True)：图片完整显示，四角与圆形相切
-    3. 人脸检测模式(face_center=True)：自动检测人脸并居中，图片填满圆形区域
+    3. 人脸检测模式(face_center=True)：智能检测人脸位置并居中
+    
+    人脸检测模式特点：
+    - 自动检测人脸、眼睛和宠物特征
+    - 智能计算安全边距，避免特征被裁切
+    - 对多人脸场景特别优化，确保所有人脸完整显示
+    - 自动调整位置使特征居中
+    - 动态调整缩放比例，平衡特征显示和画面填充
     
     Args:
         input_path (str): 输入图像路径
@@ -265,6 +272,12 @@ def create_circular_image(input_path, output_path, size=(500, 500), dpi=300, fit
         input_format (str): 输入图像格式
         output_format (str): 输出图像格式
         face_center (bool): 是否启用人脸检测和居中
+    
+    注意事项：
+    1. 人脸检测可能受图片质量、角度、光线等因素影响
+    2. 未检测到特征时会使用图片中心作为参考点
+    3. 输出DPI会影响最终图片分辨率
+    4. PNG格式输出可保持透明背景
     """
     try:
         # 使用 PIL 打开图像（支持中文路径）
@@ -277,60 +290,96 @@ def create_circular_image(input_path, output_path, size=(500, 500), dpi=300, fit
         output_size = int(canvas_size * dpi / 300)  # 基准DPI为300
         
         if face_center:
-            # 检测人脸和眼睛
+            # 检测人脸、眼睛和宠物特征
             detection = detect_features(input_path)
             faces = detection['faces']
             eyes = detection['eyes']
             pets = detection['pets']
             
             if faces or eyes or pets:
-                # 合并所有人脸和眼睛的坐标
+                # 合并所有特征坐标，统一处理
                 all_features = faces + eyes + pets
                 
-                # 计算包含所有特征的边界框
+                # 计算特征区域的边界框
                 min_x = min(f[0] for f in all_features)
                 min_y = min(f[1] for f in all_features)
                 max_x = max(f[0]+f[2] for f in all_features)
                 max_y = max(f[1]+f[3] for f in all_features)
                 
-                # 计算特征区域中心点
-                center_x = (min_x + max_x) // 2
-                center_y = (min_y + max_y) // 2
-                
-                # 动态计算安全边距（根据特征区域大小）
+                # 计算特征区域的尺寸
                 feature_width = max_x - min_x
                 feature_height = max_y - min_y
-                padding = max(feature_width, feature_height) * 1.5  # 增加50%边距
                 
-                # 计算裁剪区域
-                crop_size = int(max(feature_width, feature_height) + padding*2)
-                crop_size = max(crop_size, 500)  # 最小500像素
+                # 计算特征区域和图像的中心点
+                center_x = (min_x + max_x) // 2  # 特征中心X
+                center_y = (min_y + max_y) // 2  # 特征中心Y
+                img_center_x = img.width // 2    # 图像中心X
+                img_center_y = img.height // 2   # 图像中心Y
                 
-                # 确保裁剪区域居中且不超出图像边界
+                # 计算特征区域到图像边缘的距离
+                left_margin = min_x               # 左边距
+                right_margin = img.width - max_x  # 右边距
+                top_margin = min_y                # 上边距
+                bottom_margin = img.height - max_y # 下边距
+                
+                # 计算水平和垂直方向的安全边距
+                horizontal_margin = min(left_margin, right_margin)
+                vertical_margin = min(top_margin, bottom_margin)
+                
+                # 根据特征数量动态调整安全系数
+                safety_factor = 2.0 if len(faces) > 1 else 1.5
+                padding = max(feature_width, feature_height) * safety_factor
+                
+                # 计算初始裁剪区域大小并确保最小尺寸
+                crop_size = int(max(feature_width, feature_height) + padding * 2)
+                min_crop_size = int(output_size * 0.8)  # 最小为输出尺寸的80%
+                crop_size = max(crop_size, min_crop_size)
+                
+                # 处理特征偏离中心的情况
+                x_offset = center_x - img_center_x
+                if abs(x_offset) > crop_size // 4:
+                    # 特征靠近边缘时增加裁剪区域
+                    crop_size = int(crop_size * 1.2)
+                
+                # 计算并调整裁剪区域坐标
                 left = max(0, center_x - crop_size//2)
                 top = max(0, center_y - crop_size//2)
                 right = min(img.width, left + crop_size)
                 bottom = min(img.height, top + crop_size)
                 
-                # 调整边界溢出
+                # 确保裁剪区域不会切到特征
                 if right - left < crop_size:
-                    left = max(0, right - crop_size)
+                    # 右边超出范围时向左调整
+                    shift = crop_size - (right - left)
+                    left = max(0, left - shift)
+                    right = min(img.width, left + crop_size)
+                
                 if bottom - top < crop_size:
-                    top = max(0, bottom - crop_size)
-                    
+                    # 底部超出范围时向上调整
+                    shift = crop_size - (bottom - top)
+                    top = max(0, top - shift)
+                    bottom = min(img.height, top + crop_size)
+                
+                # 执行图像裁剪
                 img = img.crop((left, top, right, bottom))
-                print(f'✓ 已完成特征检测')
+                print(f'✓ 已完成特征检测和智能裁剪')
             else:
                 print(f'⚠ 未检测到特征: {os.path.basename(input_path)}，使用图像中心')
             
-            # 计算缩放比例，确保填满圆形区域
-            scale = output_size / min(img.width, img.height)
+            # 根据特征数量选择缩放策略
+            if len(faces) > 1:
+                # 多人脸场景：确保完整显示，可能不填满圆形
+                scale = output_size / max(img.width, img.height)
+            else:
+                # 单人脸场景：尽量填满圆形区域
+                scale = output_size / min(img.width, img.height)
+            
+            # 计算缩放后的尺寸
             new_width = int(img.width * scale)
             new_height = int(img.height * scale)
             
         elif fit_corners:
-            # 四角相切模式：图片完整显示，四角与圆形相切
-            # 计算图片初始尺寸，保持原始比例
+            # 四角相切模式：保持图片完整性
             img_ratio = img.height / img.width
             
             if img_ratio > 1:  # 竖图
@@ -340,42 +389,36 @@ def create_circular_image(input_path, output_path, size=(500, 500), dpi=300, fit
                 new_width = output_size
                 new_height = int(new_width * img_ratio)
             
-            # 计算对角线长度
+            # 计算对角线长度并调整缩放比例
             diagonal = math.sqrt(new_width**2 + new_height**2)
-            
-            # 计算缩放比例，使对角线等于圆的直径
             scale = output_size / diagonal
             new_width = int(new_width * scale)
             new_height = int(new_height * scale)
             
         else:
-            # 默认模式：根据长边计算缩放比例
+            # 默认模式：简单的长边对齐
             scale = output_size / max(img.width, img.height)
             new_width = int(img.width * scale)
             new_height = int(img.height * scale)
         
-        # 缩放图片（使用LANCZOS重采样算法，效果最好）
+        # 使用LANCZOS算法进行高质量缩放
         img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
         
-        # 创建透明背景的画布
+        # 创建透明背景画布
         canvas = Image.new('RGBA', (output_size, output_size), (0, 0, 0, 0))
         
-        # 计算图片在画布上的位置（居中）
+        # 计算居中位置并粘贴图片
         paste_x = (output_size - new_width) // 2
         paste_y = (output_size - new_height) // 2
-        
-        # 将图片粘贴到画布上
         canvas.paste(img, (paste_x, paste_y))
         
-        # 创建圆形遮罩
+        # 创建和应用圆形遮罩
         mask = Image.new('L', (output_size, output_size), 0)
         draw = ImageDraw.Draw(mask)
         draw.ellipse((0, 0, output_size-1, output_size-1), fill=255)
-        
-        # 应用圆形遮罩
         canvas.putalpha(mask)
         
-        # 保存结果，指定DPI
+        # 保存结果（带DPI信息）
         canvas.save(output_path, format=output_format, dpi=(dpi, dpi))
         
     except Exception as e:
