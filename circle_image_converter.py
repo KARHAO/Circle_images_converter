@@ -1,42 +1,42 @@
 # 导入所需的库
-from PIL import Image, ImageDraw  # PIL库用于图像处理：创建、编辑和保存图像
-import os                         # 用于文件和目录操作：路径处理、文件检查等
-import argparse                   # 用于解析命令行参数
-import re                         # 用于正则表达式匹配：处理尺寸字符串
-import sys                        # 用于系统相关操作：退出程序、设置编码等
-import math                       # 用于数学计算：计算图片缩放比例等
-import cv2                        # OpenCV库用于人脸检测
-import numpy as np               # 用于数组操作：图像数据处理
-import tkinter as tk            # 用于创建GUI窗口：文件夹选择对话框
-from tkinter import filedialog  # 用于文件对话框
-import subprocess              # 用于系统命令操作：打开文件夹等
+from PIL import Image, ImageDraw  # PIL库用于图像处理：创建、编辑和保存图像，支持多种格式和透明度
+import os                         # 用于文件和目录操作：路径处理、文件检查、目录创建等
+import argparse                   # 用于解析命令行参数，提供友好的命令行界面
+import re                         # 用于正则表达式匹配：处理尺寸字符串，支持多种单位
+import sys                        # 用于系统相关操作：退出程序、设置编码、错误处理等
+import math                       # 用于数学计算：图片缩放、圆形计算等
+import cv2                        # OpenCV库用于人脸和特征检测：支持多种特征识别
+import numpy as np               # 用于数组操作：图像数据处理、矩阵运算等
+import tkinter as tk            # 用于创建GUI窗口：提供文件夹选择对话框
+from tkinter import filedialog  # 用于文件对话框：用户友好的文件选择界面
+import subprocess              # 用于系统命令操作：打开输出文件夹等
 
 # 设置控制台输出编码（Windows系统下需要）
 if sys.platform.startswith('win'):
     sys.stdout.reconfigure(encoding='utf-8')
 
-# 人脸检测器
+# 初始化人脸检测器（使用预训练的Haar级联分类器）
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 # 定义支持的输入格式及其文件扩展名
 INPUT_FORMATS = {
-    'JPG': ['.jpg', '.jpeg'],    # JPEG格式
-    'PNG': ['.png'],             # PNG格式：支持透明背景
-    'BMP': ['.bmp'],             # BMP格式：无损位图格式
-    'WEBP': ['.webp'],           # WebP格式：Google开发的现代图像格式
-    'GIF': ['.gif'],             # GIF格式：支持动画的格式
-    'TIFF': ['.tiff', '.tif'],   # TIFF格式：专业图像格式
-    'JFIF': ['.jfif'],           # JFIF格式：JPEG文件交换格式
+    'JPG': ['.jpg', '.jpeg'],    # JPEG格式：常用的有损压缩格式
+    'PNG': ['.png'],             # PNG格式：支持透明背景的无损格式
+    'BMP': ['.bmp'],             # BMP格式：无损位图格式，文件较大
+    'WEBP': ['.webp'],           # WebP格式：Google开发的现代图像格式，支持有损和无损
+    'GIF': ['.gif'],             # GIF格式：支持动画的格式，本工具仅处理第一帧
+    'TIFF': ['.tiff', '.tif'],   # TIFF格式：专业图像格式，支持高位深
+    'JFIF': ['.jfif'],           # JFIF格式：JPEG文件交换格式的变体
 }
 
 # 定义支持的输出格式及其文件扩展名
 OUTPUT_FORMATS = {
-    'PNG': '.png',    # PNG格式（推荐：支持透明背景）
-    'JPEG': '.jpg',   # JPEG格式
-    'BMP': '.bmp',    # BMP格式
-    'TIFF': '.tiff',  # TIFF格式
-    'WEBP': '.webp',  # WebP格式
-    'JFIF': '.jfif',  # JFIF格式
+    'PNG': '.png',    # PNG格式（推荐：支持透明背景，无损压缩）
+    'JPEG': '.jpg',   # JPEG格式（有损压缩，文件小，不支持透明）
+    'BMP': '.bmp',    # BMP格式（无损，文件大，不支持透明）
+    'TIFF': '.tiff',  # TIFF格式（专业用途，支持高位深）
+    'WEBP': '.webp',  # WebP格式（现代格式，兼具压缩率和质量）
+    'JFIF': '.jfif',  # JFIF格式（JPEG变体）
 }
 
 def get_supported_input_extensions():
@@ -149,19 +149,93 @@ def calculate_circumscribed_square_size(circle_diameter):
     # 外接正方形的边长等于圆的直径
     return circle_diameter
 
-def detect_features(image_path):
+def show_processing_image(image, features=None, window_name="处理进度预览", window_size=(800, 600)):
     """
-    检测图片中的人脸、眼睛和宠物
+    显示处理过程中的图像预览，包括特征标记和实时更新
+    
+    显示特点：
+    - 固定大小窗口
+    - 自动缩放以适应窗口
+    - 特征标记使用不同颜色
+    - 居中显示
+    
+    特征标记颜色：
+    - 绿色：正面人脸
+    - 蓝色：侧面人脸
+    - 红色：躯干
+    - 青色：眼睛
     
     Args:
-        image_path (str): 输入图片路径
+        image: OpenCV格式的图像数据
+        features (dict): 检测到的特征信息字典
+        window_name (str): 预览窗口标题
+        window_size (tuple): 窗口大小 (宽, 高)
+    """
+    try:
+        # 创建图像副本以进行绘制
+        display_img = image.copy()
+        
+        if features:
+            # 为不同特征类型设置不同的颜色
+            colors = {
+                'faces': (0, 255, 0),     # 绿色：正面人脸
+                'profiles': (255, 0, 0),   # 蓝色：侧面人脸
+                'bodies': (0, 0, 255),     # 红色：躯干
+                'eyes': (255, 255, 0)      # 青色：眼睛
+            }
+            
+            # 绘制检测到的特征
+            for feature_type, color in colors.items():
+                for (x, y, w, h) in features[feature_type]:
+                    cv2.rectangle(display_img, (x, y), (x+w, y+h), color, 2)
+        
+        # 调整图像大小以适应窗口
+        h, w = display_img.shape[:2]
+        scale = min(window_size[0]/w, window_size[1]/h)
+        new_size = (int(w*scale), int(h*scale))
+        display_img = cv2.resize(display_img, new_size)
+        
+        # 创建固定大小的黑色背景
+        background = np.zeros((window_size[1], window_size[0], 3), dtype=np.uint8)
+        
+        # 计算居中位置
+        y_offset = (window_size[1] - new_size[1]) // 2
+        x_offset = (window_size[0] - new_size[0]) // 2
+        
+        # 将调整后的图像放置在背景中心
+        background[y_offset:y_offset+new_size[1], 
+                  x_offset:x_offset+new_size[0]] = display_img
+        
+        # 显示图像
+        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+        cv2.imshow(window_name, background)
+        cv2.waitKey(1)  # 等待1毫秒
+        
+    except Exception as e:
+        print(f"显示图像时出错: {str(e)}")
+
+def detect_features(image_path, show_output=True, show_preview=True):
+    """
+    检测图片中的人脸和其他特征，支持多种特征类型的智能识别
+    
+    特征类型包括：
+    - 正面人脸：使用多个级联分类器提高准确率
+    - 侧面人脸：专门的侧脸检测器
+    - 上半身躯干：适用于较远距离的人像
+    - 眼睛：在检测到的人脸区域内进行精确定位
+    
+    Args:
+        image_path (str): 输入图片路径，支持中文路径
+        show_output (bool): 是否在控制台显示检测结果统计
+        show_preview (bool): 是否显示实时预览窗口，包括特征标记
     
     Returns:
-        dict: 包含检测结果的信息，格式为：
+        dict: 包含所有检测到的特征信息的字典，格式如下：
             {
-                'faces': [(x,y,w,h), ...],
-                'eyes': [(x,y,w,h), ...],
-                'pets': [(x,y,w,h), ...]
+                'faces': [(x, y, w, h), ...],     # 正面人脸坐标
+                'profiles': [(x, y, w, h), ...],  # 侧面人脸坐标
+                'bodies': [(x, y, w, h), ...],    # 躯干坐标
+                'eyes': [(x, y, w, h), ...]       # 眼睛坐标
             }
     """
     try:
@@ -171,51 +245,73 @@ def detect_features(image_path):
         if image is None:
             raise ValueError("无法读取图片")
         
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        result = {'faces': [], 'eyes': [], 'pets': []}
-
-        # 人脸检测器配置（按精度排序）
-        face_cascades = [
-            ('haarcascade_frontalface_default.xml', 1.1, 5),
-            ('haarcascade_frontalface_alt2.xml', 1.1, 3),
-            ('haarcascade_frontalface_alt.xml', 1.2, 4),
-        ]
+        if show_preview:
+            show_processing_image(image, None, "原始图像")
         
-        # 眼睛检测器配置
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        result = {
+            'faces': [],
+            'profiles': [],
+            'bodies': [],
+            'eyes': []
+        }
+
+        # 检测器配置（按精度和用途排序）
+        cascades = {
+            'faces': [
+                # 正面人脸检测器
+                ('haarcascade_frontalface_default.xml', 1.1, 5),
+                ('haarcascade_frontalface_alt2.xml', 1.1, 3),
+                ('haarcascade_frontalface_alt.xml', 1.2, 4),
+            ],
+            'profiles': [
+                # 侧面人脸检测器
+                ('haarcascade_profileface.xml', 1.1, 3),
+            ],
+            'bodies': [
+                # 上半身躯干检测器
+                ('haarcascade_upperbody.xml', 1.1, 3),
+            ]
+        }
+        
+        # 眼睛检测器
         eye_cascade = cv2.CascadeClassifier(
             os.path.join(cv2.data.haarcascades, 'haarcascade_eye.xml')
         )
         
-        # 宠物检测器配置
-        pet_cascades = [
-            ('haarcascade_frontalcatface.xml', 1.1, 3),
-            ('haarcascade_frontaldogface.xml', 1.1, 3)
-        ]
+        # 对每种特征进行检测
+        for feature_type, cascade_configs in cascades.items():
+            for cascade_file, scale_factor, min_neighbors in cascade_configs:
+                cascade_path = os.path.join(cv2.data.haarcascades, cascade_file)
+                if not os.path.exists(cascade_path):
+                    continue
+                    
+                cascade = cv2.CascadeClassifier(cascade_path)
+                if cascade.empty():
+                    continue
+                    
+                # 根据特征类型调整检测参数
+                min_size = (30, 30)  # 默认最小尺寸
+                if feature_type == 'bodies':
+                    min_size = (60, 60)  # 躯干需要更大的最小尺寸
+                
+                features = cascade.detectMultiScale(
+                    gray,
+                    scaleFactor=scale_factor,
+                    minNeighbors=min_neighbors,
+                    minSize=min_size
+                )
+                
+                if len(features) > 0:
+                    result[feature_type].extend(features.tolist())
+                    if feature_type != 'bodies':  # 对于躯干，我们继续检测其他可能的位置
+                        break
         
-        # 检测人脸
-        for cascade_file, scale_factor, min_neighbors in face_cascades:
-            cascade_path = os.path.join(cv2.data.haarcascades, cascade_file)
-            if not os.path.exists(cascade_path):
-                continue
-                
-            face_cascade = cv2.CascadeClassifier(cascade_path)
-            if face_cascade.empty():
-                continue
-                
-            faces = face_cascade.detectMultiScale(
-                gray, scaleFactor=scale_factor, 
-                minNeighbors=min_neighbors, minSize=(30, 30)
-            )
-            
-            if len(faces) > 0:
-                result['faces'] = faces.tolist()
-                break
-                
-        # 在检测到的人脸区域内检测眼睛
+        # 在检测到的正面人脸区域内检测眼睛
         for (x, y, w, h) in result['faces']:
             roi_gray = gray[y:y+h, x:x+w]
             eyes = eye_cascade.detectMultiScale(
-                roi_gray, 
+                roi_gray,
                 scaleFactor=1.1,
                 minNeighbors=5,
                 minSize=(20, 20)
@@ -223,61 +319,74 @@ def detect_features(image_path):
             # 转换坐标到原图
             for (ex, ey, ew, eh) in eyes:
                 result['eyes'].append((x+ex, y+ey, ew, eh))
-                
-        # 检测宠物
-        for cascade_file, scale_factor, min_neighbors in pet_cascades:
-            cascade_path = os.path.join(cv2.data.haarcascades, cascade_file)
-            if os.path.exists(cascade_path):
-                pet_cascade = cv2.CascadeClassifier(cascade_path)
-                pets = pet_cascade.detectMultiScale(
-                    gray,
-                    scaleFactor=scale_factor,
-                    minNeighbors=min_neighbors,
-                    minSize=(50, 50)
-                )
-                if pets is not None:
-                    result['pets'].extend([tuple(rect) for rect in pets])
+        
+        # 在检测到的侧面人脸区域内也检测眼睛
+        for (x, y, w, h) in result['profiles']:
+            roi_gray = gray[y:y+h, x:x+w]
+            eyes = eye_cascade.detectMultiScale(
+                roi_gray,
+                scaleFactor=1.1,
+                minNeighbors=5,
+                minSize=(20, 20)
+            )
+            # 转换坐标到原图
+            for (ex, ey, ew, eh) in eyes:
+                result['eyes'].append((x+ex, y+ey, ew, eh))
 
-        pet_count = len(result['pets'])
-        if pet_count > 0:
-            print(f'✓ 检测到 {len(result["faces"])}人 {len(result["eyes"])}眼 {pet_count}宠物')
-        else:
-            print(f'✓ 检测到 {len(result["faces"])}人 {len(result["eyes"])}眼')
+        # 在每次检测到新特征后更新显示
+        if show_preview:
+            show_processing_image(image, result, "特征检测结果")
+        
+        # 输出检测结果统计
+        if show_output:
+            detection_summary = []
+            if result['faces']: detection_summary.append(f"{len(result['faces'])}个正面人脸")
+            if result['profiles']: detection_summary.append(f"{len(result['profiles'])}个侧面人脸")
+            if result['bodies']: detection_summary.append(f"{len(result['bodies'])}个躯干")
+            if result['eyes']: detection_summary.append(f"{len(result['eyes'])}只眼睛")
+            
+            if detection_summary:
+                print(f"✓ 检测到: {', '.join(detection_summary)}")
+            else:
+                print("⚠ 未检测到任何特征")
+        
         return result
         
     except Exception as e:
         print(f'⚠ 错误: 特征检测失败 ({str(e)})')
-        return {'faces': [], 'eyes': [], 'pets': []}
+        return {'faces': [], 'profiles': [], 'bodies': [], 'eyes': []}
 
-def create_circular_image(input_path, output_path, size=(500, 500), dpi=300, fit_corners=False, input_format='PNG', output_format='PNG', face_center=False):
+def create_circular_image(input_path, output_path, size=(500, 500), dpi=300, fit_corners=False, input_format='PNG', output_format='PNG', face_center=False, detection_result=None):
     """
-    创建圆形图片，支持三种模式：
-    1. 默认模式：根据长边等比例缩放并相切
-    2. 四角相切模式(fit_corners=True)：图片完整显示，四角与圆形相切
-    3. 人脸检测模式(face_center=True)：智能检测人脸位置并居中
+    创建圆形图片，支持多种处理模式和智能特征处理
     
-    人脸检测模式特点：
-    - 自动检测人脸、眼睛和宠物特征
-    - 智能计算安全边距，避免特征被裁切
-    - 对多人脸场景特别优化，确保所有人脸完整显示
-    - 自动调整位置使特征居中
-    - 动态调整缩放比例，平衡特征显示和画面填充
+    处理模式：
+    1. 默认模式：根据长边等比例缩放并相切，适合一般图片
+    2. 四角相切模式：确保原图完整显示且四角与圆形相切，适合方形图片
+    3. 人脸检测模式：智能检测人脸位置并居中，适合头像处理
+    
+    特点：
+    - 支持透明背景
+    - 高质量缩放算法
+    - 智能特征居中
+    - 自动边界处理
+    - 可自定义DPI
     
     Args:
-        input_path (str): 输入图像路径
-        output_path (str): 输出图像路径
-        size (tuple): 圆形画布大小（宽度，高度）
-        dpi (int): 输出图像DPI，影响最终分辨率
+        input_path (str): 输入图片路径，支持中文路径
+        output_path (str): 输出图片路径
+        size (tuple): 圆形画布大小（宽度，高度），单位为像素
+        dpi (int): 输出图像DPI，影响最终分辨率和打印质量
         fit_corners (bool): 是否使用四角相切模式
-        input_format (str): 输入图像格式
-        output_format (str): 输出图像格式
-        face_center (bool): 是否启用人脸检测和居中
+        input_format (str): 输入图像格式，参见 INPUT_FORMATS
+        output_format (str): 输出图像格式，参见 OUTPUT_FORMATS
+        face_center (bool): 是否启用人脸检测和居中功能
+        detection_result (dict): 已有的检测结果，可避免重复检测
     
     注意事项：
-    1. 人脸检测可能受图片质量、角度、光线等因素影响
-    2. 未检测到特征时会使用图片中心作为参考点
-    3. 输出DPI会影响最终图片分辨率
-    4. PNG格式输出可保持透明背景
+    1. 人脸检测模式下，未检测到特征时会使用图像中心
+    2. 输出DPI会影响实际像素大小：实际像素 = size * (dpi/300)
+    3. 建议使用PNG格式输出以保持透明背景
     """
     try:
         # 使用 PIL 打开图像（支持中文路径）
@@ -290,93 +399,84 @@ def create_circular_image(input_path, output_path, size=(500, 500), dpi=300, fit
         output_size = int(canvas_size * dpi / 300)  # 基准DPI为300
         
         if face_center:
-            # 检测人脸、眼睛和宠物特征
-            detection = detect_features(input_path)
-            faces = detection['faces']
-            eyes = detection['eyes']
-            pets = detection['pets']
+            # 检测人脸和其他特征
+            if detection_result is None:
+                detection_result = detect_features(input_path, show_preview=False)
             
-            if faces or eyes or pets:
-                # 合并所有特征坐标，统一处理
-                all_features = faces + eyes + pets
-                
+            faces = detection_result['faces']
+            profiles = detection_result['profiles']
+            total_faces = len(faces) + len(profiles)
+            
+            # 合并所有检测到的特征
+            all_features = faces + profiles + detection_result['eyes']
+            if not all_features and detection_result['bodies']:  # 如果没有检测到脸部特征但检测到躯干
+                all_features = detection_result['bodies']
+            
+            if all_features:
                 # 计算特征区域的边界框
                 min_x = min(f[0] for f in all_features)
                 min_y = min(f[1] for f in all_features)
                 max_x = max(f[0]+f[2] for f in all_features)
                 max_y = max(f[1]+f[3] for f in all_features)
                 
-                # 计算特征区域的尺寸
-                feature_width = max_x - min_x
-                feature_height = max_y - min_y
+                # 计算特征区域的中心点
+                feature_center_x = (min_x + max_x) // 2
+                feature_center_y = (min_y + max_y) // 2
                 
-                # 计算特征区域和图像的中心点
-                center_x = (min_x + max_x) // 2  # 特征中心X
-                center_y = (min_y + max_y) // 2  # 特征中心Y
-                img_center_x = img.width // 2    # 图像中心X
-                img_center_y = img.height // 2   # 图像中心Y
+                # 计算等比例缩放比例，确保图片填满圆形区域
+                scale = output_size / min(img.width, img.height)
                 
-                # 计算特征区域到图像边缘的距离
-                left_margin = min_x               # 左边距
-                right_margin = img.width - max_x  # 右边距
-                top_margin = min_y                # 上边距
-                bottom_margin = img.height - max_y # 下边距
+                # 计算缩放后的尺寸
+                new_width = int(img.width * scale)
+                new_height = int(img.height * scale)
                 
-                # 计算水平和垂直方向的安全边距
-                horizontal_margin = min(left_margin, right_margin)
-                vertical_margin = min(top_margin, bottom_margin)
+                # 缩放图片
+                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
                 
-                # 根据特征数量动态调整安全系数
-                safety_factor = 2.0 if len(faces) > 1 else 1.5
-                padding = max(feature_width, feature_height) * safety_factor
+                # 计算特征中心点在缩放后图片中的位置
+                scaled_feature_x = int(feature_center_x * scale)
+                scaled_feature_y = int(feature_center_y * scale)
                 
-                # 计算初始裁剪区域大小并确保最小尺寸
-                crop_size = int(max(feature_width, feature_height) + padding * 2)
-                min_crop_size = int(output_size * 0.8)  # 最小为输出尺寸的80%
-                crop_size = max(crop_size, min_crop_size)
+                # 计算需要的偏移量，使特征中心点位于圆形中心
+                offset_x = (output_size // 2) - scaled_feature_x
+                offset_y = (output_size // 2) - scaled_feature_y
                 
-                # 处理特征偏离中心的情况
-                x_offset = center_x - img_center_x
-                if abs(x_offset) > crop_size // 4:
-                    # 特征靠近边缘时增加裁剪区域
-                    crop_size = int(crop_size * 1.2)
+                # 创建透明背景画布
+                canvas = Image.new('RGBA', (output_size, output_size), (0, 0, 0, 0))
                 
-                # 计算并调整裁剪区域坐标
-                left = max(0, center_x - crop_size//2)
-                top = max(0, center_y - crop_size//2)
-                right = min(img.width, left + crop_size)
-                bottom = min(img.height, top + crop_size)
+                # 计算粘贴位置，确保特征居中
+                paste_x = offset_x
+                paste_y = offset_y
                 
-                # 确保裁剪区域不会切到特征
-                if right - left < crop_size:
-                    # 右边超出范围时向左调整
-                    shift = crop_size - (right - left)
-                    left = max(0, left - shift)
-                    right = min(img.width, left + crop_size)
+                # 调整粘贴位置，确保不会留下空白
+                if paste_x > 0:
+                    paste_x = 0
+                elif paste_x + new_width < output_size:
+                    paste_x = output_size - new_width
+                    
+                if paste_y > 0:
+                    paste_y = 0
+                elif paste_y + new_height < output_size:
+                    paste_y = output_size - new_height
                 
-                if bottom - top < crop_size:
-                    # 底部超出范围时向上调整
-                    shift = crop_size - (bottom - top)
-                    top = max(0, top - shift)
-                    bottom = min(img.height, top + crop_size)
-                
-                # 执行图像裁剪
-                img = img.crop((left, top, right, bottom))
-                print(f'✓ 已完成特征检测和智能裁剪')
+                # 粘贴图片
+                canvas.paste(img, (paste_x, paste_y))
+                print(f'✓ 已完成特征检测和居中处理')
             else:
                 print(f'⚠ 未检测到特征: {os.path.basename(input_path)}，使用图像中心')
-            
-            # 根据特征数量选择缩放策略
-            if len(faces) > 1:
-                # 多人脸场景：确保完整显示，可能不填满圆形
-                scale = output_size / max(img.width, img.height)
-            else:
-                # 单人脸场景：尽量填满圆形区域
+                # 未检测到特征时，使用默认的居中处理
                 scale = output_size / min(img.width, img.height)
-            
-            # 计算缩放后的尺寸
-            new_width = int(img.width * scale)
-            new_height = int(img.height * scale)
+                new_width = int(img.width * scale)
+                new_height = int(img.height * scale)
+                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                
+                # 创建透明背景画布
+                canvas = Image.new('RGBA', (output_size, output_size), (0, 0, 0, 0))
+                
+                # 计算居中位置
+                paste_x = (output_size - new_width) // 2
+                paste_y = (output_size - new_height) // 2
+                canvas.paste(img, (paste_x, paste_y))
             
         elif fit_corners:
             # 四角相切模式：保持图片完整性
@@ -395,22 +495,33 @@ def create_circular_image(input_path, output_path, size=(500, 500), dpi=300, fit
             new_width = int(new_width * scale)
             new_height = int(new_height * scale)
             
+            # 使用LANCZOS算法进行高质量缩放
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # 创建透明背景画布
+            canvas = Image.new('RGBA', (output_size, output_size), (0, 0, 0, 0))
+            
+            # 计算居中位置并粘贴图片
+            paste_x = (output_size - new_width) // 2
+            paste_y = (output_size - new_height) // 2
+            canvas.paste(img, (paste_x, paste_y))
+            
         else:
             # 默认模式：简单的长边对齐
             scale = output_size / max(img.width, img.height)
             new_width = int(img.width * scale)
             new_height = int(img.height * scale)
-        
-        # 使用LANCZOS算法进行高质量缩放
-        img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        
-        # 创建透明背景画布
-        canvas = Image.new('RGBA', (output_size, output_size), (0, 0, 0, 0))
-        
-        # 计算居中位置并粘贴图片
-        paste_x = (output_size - new_width) // 2
-        paste_y = (output_size - new_height) // 2
-        canvas.paste(img, (paste_x, paste_y))
+            
+            # 使用LANCZOS算法进行高质量缩放
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # 创建透明背景画布
+            canvas = Image.new('RGBA', (output_size, output_size), (0, 0, 0, 0))
+            
+            # 计算居中位置并粘贴图片
+            paste_x = (output_size - new_width) // 2
+            paste_y = (output_size - new_height) // 2
+            canvas.paste(img, (paste_x, paste_y))
         
         # 创建和应用圆形遮罩
         mask = Image.new('L', (output_size, output_size), 0)
@@ -454,9 +565,16 @@ def open_folder(path):
     except Exception as e:
         print(f'打开文件夹时出错: {str(e)}')
 
-def process_directory(input_dir, output_dir, size=(500, 500), dpi=300, fit_corners=False, input_format='PNG', output_format='PNG', face_center=False):
+def process_directory(input_dir, output_dir, size=(500, 500), dpi=300, fit_corners=False, input_format='PNG', output_format='PNG', face_center=False, show_preview=True):
     """
-    批量处理输入目录中的所有图片
+    批量处理目录中的图片，支持多种处理模式和详细的结果统计
+    
+    功能特点：
+    - 自动识别支持的图片格式
+    - 保持原始文件组织结构
+    - 智能错误处理和恢复
+    - 详细的处理统计
+    - 实时进度显示
     
     Args:
         input_dir (str): 输入目录路径
@@ -467,6 +585,18 @@ def process_directory(input_dir, output_dir, size=(500, 500), dpi=300, fit_corne
         input_format (str): 输入图像格式
         output_format (str): 输出图像格式
         face_center (bool): 是否启用人脸检测和居中
+        show_preview (bool): 是否显示处理过程预览
+    
+    处理流程：
+    1. 扫描输入目录中的所有文件
+    2. 过滤得到支持的图片文件
+    3. 对每个图片执行处理
+    4. 生成处理报告
+    
+    输出文件命名规则：
+    - 默认模式：default_原文件名
+    - 四角相切模式：fit_原文件名
+    - 人脸检测模式：face_原文件名
     """
     try:
         # 确保输出目录存在
@@ -517,14 +647,23 @@ def process_directory(input_dir, output_dir, size=(500, 500), dpi=300, fit_corne
             return
         
         # 处理结果统计
-        processed_files = []  # 成功处理的文件
-        failed_files = []    # 处理失败的文件
+        processed_files = []    # 成功处理的文件
+        failed_files = []       # 处理失败的文件
+        no_feature_files = []   # 未检测到特征的文件
         
         # 处理每个图片
         for i, file in enumerate(image_files, 1):
             try:
-                # 构建输入输出路径（确保路径编码正确）
                 input_path = os.path.join(input_dir, file)
+                
+                # 如果是人脸检测模式，先检测特征
+                detection_result = None
+                if face_center:
+                    detection_result = detect_features(input_path, show_preview=show_preview)
+                    has_features = bool(detection_result['faces'] or detection_result['profiles'] or 
+                                      detection_result['bodies'] or detection_result['eyes'])
+                    if not has_features:
+                        no_feature_files.append(file)
                 
                 # 添加模式前缀到输出文件名
                 filename = os.path.splitext(file)[0]
@@ -540,15 +679,21 @@ def process_directory(input_dir, output_dir, size=(500, 500), dpi=300, fit_corne
                     fit_corners=fit_corners,
                     input_format=input_format,
                     output_format=output_format,
-                    face_center=face_center
+                    face_center=face_center,
+                    detection_result=detection_result
                 )
                 
                 # 显示处理进度
                 print(f'[{i}/{len(image_files)}] ✓ {file} -> {output_filename}')
                 processed_files.append(file)
                 
+                # 处理完成后关闭所有窗口
+                if show_preview:
+                    cv2.destroyAllWindows()
+                
             except Exception as e:
-                # 处理失败时记录错误信息
+                if show_preview:
+                    cv2.destroyAllWindows()
                 print(f'[{i}/{len(image_files)}] ✗ {file} - 处理失败: {str(e)}')
                 failed_files.append((file, str(e)))
         
@@ -557,17 +702,27 @@ def process_directory(input_dir, output_dir, size=(500, 500), dpi=300, fit_corne
         print(f'输入文件夹总文件数: {len(all_files)} 个')
         print(f'可处理的图片: {len(image_files)} 个')
         print(f'成功处理: {len(processed_files)} 个')
+        
+        if face_center and no_feature_files:
+            print(f'未检测到特征: {len(no_feature_files)} 个')
+            print('未检测到特征的图片:')
+            for file in no_feature_files:
+                print(f'  - {file}')
+        
         if failed_files:
             print(f'处理失败: {len(failed_files)} 个')
             print('失败的文件:')
             for file, error in failed_files:
                 print(f'  - {file}: {error}')
+        
         if unsupported_files:
             print(f'不支持的文件: {len(unsupported_files)} 个')
         
         print('\n处理完成!')
         
     except Exception as e:
+        if show_preview:
+            cv2.destroyAllWindows()
         print(f'⚠ 错误: 处理目录时出错 ({str(e)})')
         raise
 
@@ -591,8 +746,8 @@ def main():
   # 指定输出尺寸为1000像素，使用四角相切模式
   python circle_image_converter.py --size 1000px --fit
   
-  # 使用人脸检测模式，输出为300DPI的JPEG格式
-  python circle_image_converter.py --face --dpi 300 --output-format JPEG
+  # 使用人脸检测模式，输出为300DPI的JPEG格式，并启用预览窗口
+  python circle_image_converter.py --face --dpi 300 --output-format JPEG --preview
   
 支持的输入格式：
   PNG, JPG/JPEG, BMP, GIF, WebP, TIFF, JFIF
@@ -610,10 +765,11 @@ def main():
   - 毫米：50mm
   - 厘米：5cm
 --dpi：设置输出图片DPI，默认300
---fit：启用四角相切模式
---face：启用人脸检测和居中模式
+--fit：启用四角相切模式，确保原图完整显示且四角与圆形相切
+--face：启用人脸检测模式，自动检测人脸并居中
 --input-format：指定输入图片格式，默认PNG
 --output-format：指定输出图片格式，默认PNG
+--preview：启用处理过程预览窗口
 ''')
     
     # 添加命令行参数
@@ -629,6 +785,8 @@ def main():
                       help='输出图片格式 (默认: PNG)')
     parser.add_argument('--face', action='store_true',
                       help='启用人脸检测模式，自动检测人脸并居中')
+    parser.add_argument('--preview', action='store_true',
+                      help='启用处理过程预览窗口')
     
     # 解析命令行参数
     args = parser.parse_args()
@@ -673,7 +831,8 @@ def main():
             fit_corners=args.fit,
             input_format=args.input_format,
             output_format=args.output_format,
-            face_center=args.face
+            face_center=args.face,
+            show_preview=args.preview
         )
         
         # 处理完成后打开输出文件夹
@@ -683,6 +842,7 @@ def main():
         print(f'错误: {str(e)}')
         sys.exit(1)
     except Exception as e:
+        cv2.destroyAllWindows()  # 确保在发生错误时关闭所有窗口
         print(f'发生错误: {str(e)}')
         sys.exit(1)
 
