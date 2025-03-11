@@ -1,4 +1,4 @@
-# Core dependencies 核心依赖
+# Core dependencies 核心依赖 2025-3-11
 Pillow>=10.0.0      # Python Imaging Library - 图像处理库
 numpy>=1.24.0       # Numerical computing - 数值计算
 opencv-python>=4.8.0 # Computer vision and image processing - 计算机视觉和图像处理

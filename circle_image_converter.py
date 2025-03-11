@@ -1,4 +1,4 @@
-# Import required libraries | 导入所需的库
+# Import required libraries | 导入所需的库 2025-3-11
 from PIL import Image, ImageDraw, ImageFont  # PIL library for image processing | PIL库用于图像处理
 import os                         # File and directory operations | 文件和目录操作
 import argparse                   # Command line argument parsing | 命令行参数解析
