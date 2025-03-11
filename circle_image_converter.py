@@ -1,42 +1,42 @@
-# 导入所需的库
-from PIL import Image, ImageDraw, ImageFont  # PIL库用于图像处理：创建、编辑和保存图像，支持多种格式和透明度
-import os                         # 用于文件和目录操作：路径处理、文件检查、目录创建等
-import argparse                   # 用于解析命令行参数，提供友好的命令行界面
-import re                         # 用于正则表达式匹配：处理尺寸字符串，支持多种单位
-import sys                        # 用于系统相关操作：退出程序、设置编码、错误处理等
-import math                       # 用于数学计算：图片缩放、圆形计算等
-import cv2                        # OpenCV库用于人脸和特征检测：支持多种特征识别
-import numpy as np               # 用于数组操作：图像数据处理、矩阵运算等
-import tkinter as tk            # 用于创建GUI窗口：提供文件夹选择对话框
-from tkinter import filedialog  # 用于文件对话框：用户友好的文件选择界面
-import subprocess              # 用于系统命令操作：打开输出文件夹等
+# Import required libraries | 导入所需的库
+from PIL import Image, ImageDraw, ImageFont  # PIL library for image processing | PIL库用于图像处理
+import os                         # File and directory operations | 文件和目录操作
+import argparse                   # Command line argument parsing | 命令行参数解析
+import re                         # Regular expression matching | 正则表达式匹配
+import sys                        # System-specific operations | 系统相关操作
+import math                       # Mathematical calculations | 数学计算
+import cv2                        # OpenCV for face and feature detection | OpenCV用于人脸和特征检测
+import numpy as np               # Array operations | 数组操作
+import tkinter as tk            # GUI toolkit | GUI工具包
+from tkinter import filedialog  # File dialog interface | 文件对话框界面
+import subprocess              # System command operations | 系统命令操作
 
-# 设置控制台输出编码（Windows系统下需要）
+# Configure console output encoding for Windows | 设置Windows系统的控制台输出编码
 if sys.platform.startswith('win'):
     sys.stdout.reconfigure(encoding='utf-8')
 
-# 初始化人脸检测器（使用预训练的Haar级联分类器）
+# Initialize face detector | 初始化人脸检测器
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
-# 定义支持的输入格式及其文件扩展名
+# Supported input formats and their extensions | 支持的输入格式及其文件扩展名
 INPUT_FORMATS = {
-    'JPG': ['.jpg', '.jpeg'],    # JPEG格式：常用的有损压缩格式，适合照片
-    'PNG': ['.png'],             # PNG格式：支持透明背景的无损格式，适合图标和徽标
-    'BMP': ['.bmp'],             # BMP格式：无损位图格式，文件较大但处理速度快
-    'WEBP': ['.webp'],           # WebP格式：Google开发的现代图像格式，兼具压缩率和质量
-    'GIF': ['.gif'],             # GIF格式：支持动画的格式，本工具仅处理第一帧
-    'TIFF': ['.tiff', '.tif'],   # TIFF格式：专业图像格式，支持高位深，适合印刷
-    'JFIF': ['.jfif'],           # JFIF格式：JPEG文件交换格式的变体
+    'JPG': ['.jpg', '.jpeg'],    # JPEG format: lossy compression, suitable for photos | JPEG格式：有损压缩，适合照片
+    'PNG': ['.png'],             # PNG format: lossless with transparency | PNG格式：无损格式，支持透明背景
+    'BMP': ['.bmp'],             # BMP format: uncompressed bitmap | BMP格式：无压缩位图
+    'WEBP': ['.webp'],           # WebP format: modern format by Google | WebP格式：Google开发的现代格式
+    'GIF': ['.gif'],             # GIF format: supports animation (first frame only) | GIF格式：支持动画（仅处理第一帧）
+    'TIFF': ['.tiff', '.tif'],   # TIFF format: professional format | TIFF格式：专业图像格式
+    'JFIF': ['.jfif'],           # JFIF format: JPEG variant | JFIF格式：JPEG文件交换格式
 }
 
-# 定义支持的输出格式及其文件扩展名
+# Supported output formats and their extensions | 支持的输出格式及其文件扩展名
 OUTPUT_FORMATS = {
-    'PNG': '.png',    # PNG格式（推荐：支持透明背景，无损压缩，适合Web使用）
-    'JPEG': '.jpg',   # JPEG格式（有损压缩，文件小，适合照片）
-    'BMP': '.bmp',    # BMP格式（无损，文件大，适合临时存储）
-    'TIFF': '.tiff',  # TIFF格式（专业用途，支持高位深，适合印刷）
-    'WEBP': '.webp',  # WebP格式（现代格式，兼具压缩率和质量，适合Web使用）
-    'JFIF': '.jfif',  # JFIF格式（JPEG变体，兼容性好）
+    'PNG': '.png',    # PNG format (recommended: supports transparency) | PNG格式（推荐：支持透明背景）
+    'JPEG': '.jpg',   # JPEG format (lossy compression, small file size) | JPEG格式（有损压缩，文件小）
+    'BMP': '.bmp',    # BMP format (uncompressed, large file size) | BMP格式（无压缩，文件大）
+    'TIFF': '.tiff',  # TIFF format (professional use) | TIFF格式（专业用途）
+    'WEBP': '.webp',  # WebP format (modern, good compression) | WebP格式（现代格式，压缩好）
+    'JFIF': '.jfif',  # JFIF format (JPEG variant) | JFIF格式（JPEG变体）
 }
 
 def get_supported_input_extensions():

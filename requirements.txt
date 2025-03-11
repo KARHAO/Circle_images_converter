@@ -1,9 +1,15 @@
-#所需依赖
+# Core dependencies 核心依赖
+Pillow>=10.0.0      # Python Imaging Library - 图像处理库
+numpy>=1.24.0       # Numerical computing - 数值计算
+opencv-python>=4.8.0 # Computer vision and image processing - 计算机视觉和图像处理
+
+# GUI dependencies GUI依赖
+tkinter             # GUI toolkit (usually comes with Python) - GUI工具包（通常随Python一起安装）
 
 # 图像处理核心库
 opencv-python>=4.5.0  # 核心图像处理库
 Pillow>=8.0.0  # 图片读写和基础处理
-numpy>=1.19.0  # 数值计算支持
+numpy>=1.19.5  # 数值计算支持
 python-dotenv>=0.19.0  # 环境变量管理（预留）
 tk>=0.1.0
 
