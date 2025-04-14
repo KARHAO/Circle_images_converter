@@ -1060,92 +1060,114 @@ def process_directory(input_dir, output_dir, size=(500, 500), dpi=300, fit_corne
         print(f'⚠ 错误: 处理目录时出错 ({str(e)})')
         raise
 
-def main():
+def show_welcome_message():
     """
-    主函数：处理命令行参数并执行图片转换
+    显示欢迎信息和使用指南
     """
-    # 创建命令行参数解析器，添加详细的程序描述
-    parser = argparse.ArgumentParser(
-        description='圆形图片转换工具\n'
-                  '将各种格式的图片转换为带透明背景的圆形图片\n'
-                  '支持三种转换模式：默认模式、四角相切模式和人脸检测模式',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog='''
-以下是帮助指令和示例：
-
-使用示例：
-  # 使用默认设置（500px，PNG格式）
-  python circle_image_converter.py
-  
-  # 指定输出尺寸为1000像素，使用四角相切模式
-  python circle_image_converter.py --size 1000px --fit
-  
-  # 使用人脸检测模式，输出为300DPI的JPEG格式，并启用预览窗口
-  python circle_image_converter.py --face --dpi 300 --output-format JPEG --preview
-  
-  # 在输出文件名前添加模式前缀（如：face_、fit_、default_）
-  python circle_image_converter.py --prefix
-  
-支持的输入格式：
-  PNG, JPG/JPEG, BMP, GIF, WebP, TIFF, JFIF
-  
-支持的输出格式：
-  PNG（推荐，支持透明背景）, JPEG, BMP, WebP, TIFF, JFIF
-  
-尺寸单位支持：
-  px（像素）, mm（毫米）, cm（厘米）
-  示例: 500px, 50mm, 5cm
-
-命令行选项：
---size：设置圆形画布尺寸，支持以下格式：
-  - 像素：500px（默认）
-  - 毫米：50mm
-  - 厘米：5cm
---dpi：设置输出图片DPI，默认300
---fit：启用四角相切模式，确保原图完整显示且四角与圆形相切
---face：启用人脸检测模式，自动检测人脸并居中
---input-format：指定输入图片格式，默认PNG
---output-format：指定输出图片格式，默认PNG
---preview：启用处理过程预览窗口
---prefix：在输出文件名前添加模式前缀
---manual：启用手动选择模式（仅在使用--face时有效）
-''')
+    print("\n" + "="*50)
+    print("欢迎使用圆形图片转换工具")
+    print("="*50)
+    print("\n该工具可以将各种格式的图片转换为带透明背景的圆形图片")
+    print("支持三种处理模式和多种图片格式")
     
-    # 添加命令行参数
-    parser.add_argument('--size', default='500px',
-                      help='圆形画布尺寸，支持px/mm/cm单位 (默认: 500px)')
-    parser.add_argument('--dpi', type=int, default=300,
-                      help='输出图片DPI，影响最终分辨率 (默认: 300)')
-    parser.add_argument('--fit', action='store_true',
-                      help='启用四角相切模式，确保原图完整显示且四角与圆形相切')
-    parser.add_argument('--input-format', default='PNG', choices=list(INPUT_FORMATS.keys()),
-                      help='输入图片格式 (默认: PNG)')
-    parser.add_argument('--output-format', default='PNG', choices=list(OUTPUT_FORMATS.keys()),
-                      help='输出图片格式 (默认: PNG)')
-    parser.add_argument('--face', action='store_true',
-                      help='启用人脸检测模式，自动检测人脸并居中')
-    parser.add_argument('--preview', action='store_true',
-                      help='启用处理过程预览窗口')
-    parser.add_argument('--prefix', action='store_true',
-                      help='在输出文件名前添加模式前缀')
-    parser.add_argument('--manual', action='store_true',
-                      help='启用手动选择模式（仅在使用--face时有效）')
+    print("\n主要特点:")
+    print("  1. 三种处理模式：默认模式、四角相切模式和人脸检测模式")
+    print("  2. 支持多种图片格式：PNG、JPG/JPEG、BMP、GIF、WebP等")
+    print("  3. 智能人脸检测：自动识别并居中人脸")
+    print("  4. 灵活的尺寸设置：支持像素(px)、毫米(mm)、厘米(cm)")
+    print("  5. 批量处理：支持整个文件夹的图片批量转换")
     
-    # 解析命令行参数
-    args = parser.parse_args()
+    print("\n可用命令:")
+    print("  1: 默认模式 - 保持图片比例，长边与圆形相切")
+    print("  2: 四角相切模式 - 确保原图完整显示")
+    print("  3: 人脸检测模式 - 自动检测人脸并居中")
+    print("  4: 人脸检测手动模式 - 可以手动选择每张图片的处理方式")
+    print("  5: 高级选项 - 自定义尺寸、DPI等参数")
+    print("  h: 显示帮助信息")
+    print("  q: 退出程序")
+    
+    print("\n" + "="*50)
+
+def show_help():
+    """
+    显示详细帮助信息
+    """
+    print("\n详细帮助信息:")
+    print("\n1. 默认模式")
+    print("   描述: 保持图片比例，并使图片的长边与圆形相切。")
+    print("   适用: 一般图片处理")
+    
+    print("\n2. 四角相切模式")
+    print("   描述: 确保原图完整显示，并使图片的四个角与圆形相切。")
+    print("   适用: 方形图片和徽标")
+    
+    print("\n3. 人脸检测模式")
+    print("   描述: 自动识别人脸位置并居中。")
+    print("   适用: 头像处理")
+    
+    print("\n4. 人脸检测手动模式")
+    print("   描述: 可以手动选择每张图片的处理方式。")
+    print("   使用方法: 按1选择人脸模式，按2选择默认模式，按3选择四角相切模式，按ESC跳过")
+    
+    print("\n5. 支持的文件格式:")
+    print("   输入: PNG, JPG/JPEG, BMP, GIF, WebP, TIFF, JFIF")
+    print("   输出: PNG(推荐), JPEG, BMP, WebP, TIFF, JFIF")
+    
+    print("\n6. 高级选项说明:")
+    print("   尺寸设置: 支持像素(px)、毫米(mm)、厘米(cm)，如500px, 50mm, 5cm")
+    print("   DPI设置: 影响最终输出分辨率，默认为300")
+    print("   预览功能: 可以实时查看处理过程")
+    print("   前缀功能: 在输出文件名前添加模式前缀")
+    
+    print("\n" + "="*50)
+
+def get_user_choice():
+    """
+    获取用户输入的命令
+    """
+    print("\n请输入命令数字或字母 (h显示帮助, q退出):")
+    return input("> ").strip().lower()
+
+def run_with_args(args_list):
+    """
+    使用指定参数运行程序
+    
+    Args:
+        args_list: 命令行参数列表
+    """
+    # 保存原始参数
+    original_argv = sys.argv.copy()
     
     try:
+        # 替换命令行参数
+        sys.argv = ['circle_image_converter.py'] + args_list
+        
+        # 创建新的参数解析器
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--size', default='500px')
+        parser.add_argument('--dpi', type=int, default=300)
+        parser.add_argument('--fit', action='store_true')
+        parser.add_argument('--input-format', default='PNG', choices=list(INPUT_FORMATS.keys()))
+        parser.add_argument('--output-format', default='PNG', choices=list(OUTPUT_FORMATS.keys()))
+        parser.add_argument('--face', action='store_true')
+        parser.add_argument('--preview', action='store_true')
+        parser.add_argument('--prefix', action='store_true')
+        parser.add_argument('--manual', action='store_true')
+        
+        # 解析参数
+        args = parser.parse_args()
+        
         # 选择输入文件夹
         input_dir = select_folder('选择输入文件夹')
         if not input_dir:
-            print('未选择输入文件夹，程序退出')
-            sys.exit(0)
+            print('未选择输入文件夹，操作取消')
+            return
         
         # 选择输出文件夹
         output_dir = select_folder('选择输出文件夹')
         if not output_dir:
-            print('未选择输出文件夹，程序退出')
-            sys.exit(0)
+            print('未选择输出文件夹，操作取消')
+            return
         
         # 解析画布尺寸
         canvas_size = parse_size(args.size)
@@ -1177,7 +1199,7 @@ def main():
             face_center=args.face,
             show_preview=args.preview,
             add_prefix=args.prefix,
-            manual_mode=args.manual and args.face  # 只在启用人脸检测时才启用手动模式
+            manual_mode=args.manual and args.face
         )
         
         # 处理完成后打开输出文件夹
@@ -1185,12 +1207,129 @@ def main():
         
     except ValueError as e:
         print(f'错误: {str(e)}')
-        sys.exit(1)
     except Exception as e:
-        cv2.destroyAllWindows()  # 确保在发生错误时关闭所有窗口
+        cv2.destroyAllWindows()
         print(f'发生错误: {str(e)}')
-        sys.exit(1)
+    finally:
+        # 恢复原始参数
+        sys.argv = original_argv.copy()
 
+def get_advanced_options():
+    """
+    获取用户的高级选项设置
+    
+    Returns:
+        list: 参数列表
+    """
+    args = []
+    
+    # 获取尺寸
+    print("\n请输入圆形画布尺寸 (如: 500px、50mm、5cm，直接回车使用默认值500px):")
+    size = input("> ").strip()
+    if size:
+        args.extend(['--size', size])
+    
+    # 获取DPI
+    print("\n请输入输出DPI (直接回车使用默认值300):")
+    dpi = input("> ").strip()
+    if dpi and dpi.isdigit():
+        args.extend(['--dpi', dpi])
+    
+    # 获取输入格式
+    print(f"\n请选择输入格式 (可选: {', '.join(INPUT_FORMATS.keys())}, 直接回车使用默认值PNG):")
+    input_format = input("> ").strip().upper()
+    if input_format in INPUT_FORMATS:
+        args.extend(['--input-format', input_format])
+    
+    # 获取输出格式
+    print(f"\n请选择输出格式 (可选: {', '.join(OUTPUT_FORMATS.keys())}, 直接回车使用默认值PNG):")
+    output_format = input("> ").strip().upper()
+    if output_format in OUTPUT_FORMATS:
+        args.extend(['--output-format', output_format])
+    
+    # 询问是否启用预览
+    print("\n是否启用处理过程预览? (y/n, 直接回车为n):")
+    preview = input("> ").strip().lower()
+    if preview == 'y':
+        args.append('--preview')
+    
+    # 询问是否添加前缀
+    print("\n是否在输出文件名前添加模式前缀? (y/n, 直接回车为n):")
+    prefix = input("> ").strip().lower()
+    if prefix == 'y':
+        args.append('--prefix')
+    
+    return args
+
+def main():
+    """
+    主函数：显示介绍信息，等待用户输入指令后执行相应操作
+    """
+    try:
+        # 显示欢迎信息
+        show_welcome_message()
+        
+        while True:
+            # 获取用户选择
+            choice = get_user_choice()
+            
+            if choice == 'q':
+                print("退出程序")
+                break
+                
+            elif choice == 'h':
+                show_help()
+                
+            elif choice == '1':
+                # 默认模式
+                print("\n选择了默认模式")
+                run_with_args([])
+                
+            elif choice == '2':
+                # 四角相切模式
+                print("\n选择了四角相切模式")
+                run_with_args(['--fit'])
+                
+            elif choice == '3':
+                # 人脸检测模式
+                print("\n选择了人脸检测模式")
+                run_with_args(['--face'])
+                
+            elif choice == '4':
+                # 人脸检测手动模式
+                print("\n选择了人脸检测手动模式")
+                run_with_args(['--face', '--manual'])
+                
+            elif choice == '5':
+                # 高级选项
+                print("\n选择了高级选项")
+                advanced_args = get_advanced_options()
+                
+                # 询问额外的模式
+                print("\n请选择处理模式:")
+                print("1: 默认模式")
+                print("2: 四角相切模式")
+                print("3: 人脸检测模式")
+                print("4: 人脸检测手动模式")
+                mode = input("> ").strip()
+                
+                if mode == '2':
+                    advanced_args.append('--fit')
+                elif mode == '3':
+                    advanced_args.append('--face')
+                elif mode == '4':
+                    advanced_args.extend(['--face', '--manual'])
+                
+                run_with_args(advanced_args)
+                
+            else:
+                print("无效的命令，请重新输入")
+                
+    except KeyboardInterrupt:
+        print("\n程序被用户终止")
+    except Exception as e:
+        print(f"\n程序运行出错: {str(e)}")
+        
 # 程序入口点
 if __name__ == '__main__':
     main()

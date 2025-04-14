@@ -1,16 +1,22 @@
 # Core dependencies 核心依赖 2025-3-11
-Pillow>=10.0.0      # Python Imaging Library - 图像处理库
-numpy>=1.24.0       # Numerical computing - 数值计算
-opencv-python>=4.8.0 # Computer vision and image processing - 计算机视觉和图像处理
+Pillow>=10.0.0      # Python Imaging Library - 图像处理库，用于图像加载、处理和保存
+numpy>=1.24.0       # Numerical computing - 数值计算库，用于矩阵操作和数学运算
+opencv-python==4.8.0.76 # Computer vision and image processing - 计算机视觉和图像处理，特定版本以确保功能稳定
 
 # GUI dependencies GUI依赖
-tkinter             # GUI toolkit (usually comes with Python) - GUI工具包（通常随Python一起安装）
+# tkinter是Python标准库，通常无需单独安装，但某些系统可能需要额外配置
+tk>=0.1.0           # Tkinter依赖，用于文件选择对话框
 
-# 图像处理核心库
-opencv-python>=4.5.0  # 核心图像处理库
-Pillow>=8.0.0  # 图片读写和基础处理
-numpy>=1.19.5  # 数值计算支持
+# 其他依赖
 python-dotenv>=0.19.0  # 环境变量管理（预留）
-tk>=0.1.0
 
-# 注意：tkinter 是 Python 标准库，无需单独安装
+# 重要说明:
+# 1. 请务必安装指定版本的OpenCV(4.8.0.76)，其他版本可能导致功能异常
+# 2. 请勿安装opencv-python-headless版本，它不支持GUI功能，会导致手动模式和交互菜单无法使用
+# 3. 如果已安装多个版本的OpenCV，可能会引起冲突，请先卸载所有OpenCV版本后再安装
+#    pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python
+#    pip install opencv-python==4.8.0.76
+# 4. 在某些系统上，可能需要单独安装tkinter:
+#    - Windows: Python安装时通常已包含
+#    - Linux(Ubuntu/Debian): sudo apt-get install python3-tk
+#    - MacOS: brew install python-tk
