@@ -18,17 +18,17 @@
 ### 1. 默认模式--default
 默认模式会保持图片比例，并使图片的长边与圆形相切。
 
-![默认模式示例](https://github.com/KARHAO/Circle_images_converter/blob/main/examples/default_mode.png)
+![默认模式示例](examples/default_mode.png)
 
 ### 2. 四角相切模式--fit
 四角相切模式会确保原图完整显示，并使图片的四个角与圆形相切。
 
-![四角相切模式示例](https://github.com/KARHAO/Circle_images_converter/blob/main/examples/fit_mode.png)
+![四角相切模式示例](examples/fit_mode.png)
 
 ### 3. 人脸检测模式--face
 人脸检测模式会自动识别人脸位置并居中，适合处理头像。
 
-![人脸检测模式示例](https://github.com/KARHAO/Circle_images_converter/blob/main/examples/face_mode.png)
+![人脸检测模式示例](examples/face_mode.png)
 
 ## 使用方法
 
