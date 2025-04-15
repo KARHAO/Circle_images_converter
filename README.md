@@ -40,30 +40,6 @@
 4. 选择需要处理的图片
 5. 查看结果并保存
 
-### 命令行选项
-
-程序支持多种命令行参数：
-
-```
-usage: circle_image_converter.py [-h] [-i INPUT] [-o OUTPUT] [-s SIZE] [-c COLOR] [-t TRANSPARENT] [-f] [-p] [-m] [--batch]
-
-可选参数:
-  -h, --help            显示帮助信息并退出
-  -i INPUT, --input INPUT
-                        输入图片路径或目录
-  -o OUTPUT, --output OUTPUT
-                        输出图片的路径或目录（默认为源文件名加_circle后缀）
-  -s SIZE, --size SIZE  输出图片的尺寸，格式为WIDTHxHEIGHT（默认为原图尺寸）
-  -c COLOR, --color COLOR
-                        背景颜色，格式为HEX或RGB（默认为白色）
-  -t TRANSPARENT, --transparent TRANSPARENT
-                        设置背景透明度，0-100之间的整数（默认为0，完全不透明）
-  -f, --fit             使用四角相切模式，较少裁剪
-  -p, --face            使用人脸检测功能，自动将人脸居中
-  -m, --manual          使用手动模式，可以自定义中心点
-  --batch               批量处理整个目录
-```
-
 ### 模式说明
 
 1. **默认模式**：从图片中心裁剪最大内切圆
@@ -111,7 +87,7 @@ A: 确保您的系统符合最低要求，Windows 7及以上，没有缺少必�
 A: 尝试使用手动模式，或者调整图片的亮度和对比度后再次尝试。
 
 **Q: 可以批量处理图片吗？**  
-A: 是的，使用`--batch`参数或在高级选项中选择批量处理。
+A: 是的，在程序界面中选择批量处理模式即可。
 
 ## 贡献
 
