@@ -1,4 +1,3 @@
-# Import required libraries | 导入所需的库 2025-3-11
 from PIL import Image, ImageDraw, ImageFont  # PIL library for image processing | PIL库用于图像处理
 import os                         # File and directory operations | 文件和目录操作
 import argparse                   # Command line argument parsing | 命令行参数解析
@@ -11,12 +10,38 @@ import tkinter as tk            # GUI toolkit | GUI工具包
 from tkinter import filedialog  # File dialog interface | 文件对话框界面
 import subprocess              # System command operations | 系统命令操作
 
-# Configure console output encoding for Windows | 设置Windows系统的控制台输出编码
-if sys.platform.startswith('win'):
-    sys.stdout.reconfigure(encoding='utf-8')
+# 添加调试信息
+def debug_print(message):
+    with open("debug.log", "a", encoding="utf-8") as f:
+        f.write(f"{message}\n")
 
-# Initialize face detector | 初始化人脸检测器
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# 获取资源文件路径
+def get_resource_path(relative_path):
+    try:
+        # PyInstaller创建临时文件夹，将路径存储在_MEIPASS中
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    
+    debug_print(f"Base path: {base_path}")
+    debug_print(f"Relative path: {relative_path}")
+    
+    return os.path.join(base_path, relative_path)
+
+# 初始化人脸检测器
+try:
+    debug_print("正在初始化人脸检测器...")
+    face_cascade_path = get_resource_path("haarcascades/haarcascade_frontalface_default.xml")
+    debug_print(f"人脸检测器路径: {face_cascade_path}")
+    face_cascade = cv2.CascadeClassifier(face_cascade_path)
+    debug_print("人脸检测器初始化完成")
+except Exception as e:
+    debug_print(f"初始化人脸检测器失败: {str(e)}")
+    face_cascade = None
+
+# Configure console output encoding for Windows | 设置Windows系统的控制台输出编码
+# if sys.platform.startswith('win'):
+#     sys.stdout.reconfigure(encoding='utf-8')
 
 # Supported input formats and their extensions | 支持的输入格式及其文件扩展名
 INPUT_FORMATS = {
@@ -375,48 +400,17 @@ def show_processing_image(image, features=None, window_name="处理进度预览"
 def detect_features(image_path, show_output=True, show_preview=True, preview_size=(800, 600)):
     """
     检测图片中的人脸和其他特征，支持多种特征类型的智能识别
-    
-    特征类型包括：
-    - 正面人脸：使用多个级联分类器提高准确率
-    - 侧面人脸：专门的侧脸检测器，提高检测全面性
-    - 上半身躯干：适用于较远距离的人像，作为备选特征
-    - 眼睛：在检测到的人脸区域内进行精确定位，提高准确性
-    - 嘴巴：在检测到的人脸区域内进行精确定位，增强特征识别
-    
-    检测策略：
-    1. 优先使用多个人脸检测器，提高准确率
-    2. 在人脸区域内进行眼睛和嘴巴检测
-    3. 对正面和侧面人脸分别进行特征检测
-    4. 使用躯干检测作为备选方案
-    
-    Args:
-        image_path (str): 输入图片路径，支持中文路径
-        show_output (bool): 是否在控制台显示检测结果统计
-        show_preview (bool): 是否显示实时预览窗口
-        preview_size (tuple): 预览窗口大小 (宽, 高)
-    
-    Returns:
-        dict: 包含所有检测到的特征信息的字典，格式如下：
-            {
-                'faces': [(x, y, w, h), ...],     # 正面人脸坐标
-                'profiles': [(x, y, w, h), ...],  # 侧面人脸坐标
-                'bodies': [(x, y, w, h), ...],    # 躯干坐标
-                'eyes': [(x, y, w, h), ...],      # 眼睛坐标
-                'mouths': [(x, y, w, h), ...]     # 嘴巴坐标
-            }
-    
-    注意事项：
-    1. 检测结果可能受图片质量、光线、角度等因素影响
-    2. 某些特征可能无法检测到，此时返回空列表
-    3. 坐标值均为像素单位，相对于原图
-    4. 检测参数已经过优化，平衡了准确率和速度
     """
     try:
+        debug_print(f"开始检测特征，图片路径: {image_path}")
         # 读取图片（支持中文路径）
         img_array = np.fromfile(image_path, dtype=np.uint8)
         image = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
         if image is None:
+            debug_print("无法读取图片")
             raise ValueError("无法读取图片")
+        
+        debug_print(f"图片尺寸: {image.shape}")
         
         if show_preview:
             show_processing_image(image, None, "原始图像", preview_size)
@@ -427,15 +421,15 @@ def detect_features(image_path, show_output=True, show_preview=True, preview_siz
             'profiles': [],
             'bodies': [],
             'eyes': [],
-            'mouths': []  # 添加嘴巴检测结果
+            'mouths': []
         }
 
         # 检测器配置（按精度和用途排序）
         cascades = {
             'faces': [
-                ('haarcascade_frontalface_default.xml', 1.1, 5),
+                ('haarcascade_frontalface_default.xml', 1.1, 3),  # 降低minNeighbors以提高检测率
                 ('haarcascade_frontalface_alt2.xml', 1.1, 3),
-                ('haarcascade_frontalface_alt.xml', 1.2, 4),
+                ('haarcascade_frontalface_alt.xml', 1.2, 3),
             ],
             'profiles': [
                 ('haarcascade_profileface.xml', 1.1, 3),
@@ -445,32 +439,59 @@ def detect_features(image_path, show_output=True, show_preview=True, preview_siz
             ]
         }
         
+        # 初始化所有级联分类器
+        cascade_classifiers = {}
+        for feature_type, cascade_configs in cascades.items():
+            cascade_classifiers[feature_type] = []
+            for cascade_file, scale_factor, min_neighbors in cascade_configs:
+                try:
+                    cascade_path = get_resource_path(f"haarcascades/{cascade_file}")
+                    debug_print(f"级联分类器路径 ({feature_type}): {cascade_path}")
+                    if os.path.exists(cascade_path):
+                        cascade = cv2.CascadeClassifier(cascade_path)
+                        if not cascade.empty():
+                            cascade_classifiers[feature_type].append((cascade, scale_factor, min_neighbors))
+                        else:
+                            debug_print(f"无法加载级联分类器: {cascade_path}")
+                    else:
+                        debug_print(f"找不到级联分类器文件: {cascade_path}")
+                except Exception as e:
+                    debug_print(f"初始化级联分类器出错: {str(e)}")
+        
         # 眼睛检测器
-        eye_cascade = cv2.CascadeClassifier(
-            os.path.join(cv2.data.haarcascades, 'haarcascade_eye.xml')
-        )
+        try:
+            eye_cascade_path = get_resource_path("haarcascades/haarcascade_eye.xml")
+            debug_print(f"眼睛检测器路径: {eye_cascade_path}")
+            eye_cascade = cv2.CascadeClassifier(eye_cascade_path)
+            if eye_cascade.empty():
+                debug_print("眼睛检测器加载失败")
+                eye_cascade = None
+        except Exception as e:
+            debug_print(f"初始化眼睛检测器失败: {str(e)}")
+            eye_cascade = None
         
         # 嘴巴检测器
-        mouth_cascade = cv2.CascadeClassifier(
-            os.path.join(cv2.data.haarcascades, 'haarcascade_smile.xml')
-        )
+        try:
+            mouth_cascade_path = get_resource_path("haarcascades/haarcascade_smile.xml")
+            debug_print(f"嘴巴检测器路径: {mouth_cascade_path}")
+            mouth_cascade = cv2.CascadeClassifier(mouth_cascade_path)
+            if mouth_cascade.empty():
+                debug_print("嘴巴检测器加载失败")
+                mouth_cascade = None
+        except Exception as e:
+            debug_print(f"初始化嘴巴检测器失败: {str(e)}")
+            mouth_cascade = None
         
         # 对每种特征进行检测
-        for feature_type, cascade_configs in cascades.items():
-            for cascade_file, scale_factor, min_neighbors in cascade_configs:
-                cascade_path = os.path.join(cv2.data.haarcascades, cascade_file)
-                if not os.path.exists(cascade_path):
-                    continue
-                    
-                cascade = cv2.CascadeClassifier(cascade_path)
-                if cascade.empty():
-                    continue
-                    
+        for feature_type, classifiers in cascade_classifiers.items():
+            debug_print(f"开始检测{feature_type}...")
+            for cascade, scale_factor, min_neighbors in classifiers:
                 # 根据特征类型调整检测参数
                 min_size = (30, 30)  # 默认最小尺寸
                 if feature_type == 'bodies':
                     min_size = (60, 60)  # 躯干需要更大的最小尺寸
                 
+                debug_print(f"使用参数: scaleFactor={scale_factor}, minNeighbors={min_neighbors}, minSize={min_size}")
                 features = cascade.detectMultiScale(
                     gray,
                     scaleFactor=scale_factor,
@@ -479,65 +500,44 @@ def detect_features(image_path, show_output=True, show_preview=True, preview_siz
                 )
                 
                 if len(features) > 0:
+                    debug_print(f"检测到{len(features)}个{feature_type}")
                     result[feature_type].extend(features.tolist())
                     if feature_type != 'bodies':  # 对于躯干，我们继续检测其他可能的位置
                         break
+                else:
+                    debug_print(f"未检测到{feature_type}")
         
         # 在检测到的正面人脸区域内检测眼睛和嘴巴
-        for (x, y, w, h) in result['faces']:
-            # 提取人脸区域
-            roi_gray = gray[y:y+h, x:x+w]
-            
-            # 检测眼睛
-            eyes = eye_cascade.detectMultiScale(
-                roi_gray,
-                scaleFactor=1.1,
-                minNeighbors=5,
-                minSize=(20, 20)
-            )
-            # 转换眼睛坐标到原图
-            for (ex, ey, ew, eh) in eyes:
-                result['eyes'].append((x+ex, y+ey, ew, eh))
-            
-            # 检测嘴巴（主要在人脸下半部分）
-            roi_mouth = roi_gray[h//2:, :]  # 只在人脸下半部分检测
-            mouths = mouth_cascade.detectMultiScale(
-                roi_mouth,
-                scaleFactor=1.1,
-                minNeighbors=20,  # 增加此值以减少误检
-                minSize=(25, 15)  # 设置最小尺寸
-            )
-            # 转换嘴巴坐标到原图
-            for (mx, my, mw, mh) in mouths:
-                result['mouths'].append((x+mx, y+h//2+my, mw, mh))
-        
-        # 在检测到的侧面人脸区域内也检测眼睛和嘴巴
-        for (x, y, w, h) in result['profiles']:
-            # 提取人脸区域
-            roi_gray = gray[y:y+h, x:x+w]
-            
-            # 检测眼睛
-            eyes = eye_cascade.detectMultiScale(
-                roi_gray,
-                scaleFactor=1.1,
-                minNeighbors=5,
-                minSize=(20, 20)
-            )
-            # 转换眼睛坐标到原图
-            for (ex, ey, ew, eh) in eyes:
-                result['eyes'].append((x+ex, y+ey, ew, eh))
-            
-            # 检测嘴巴
-            roi_mouth = roi_gray[h//2:, :]  # 只在人脸下半部分检测
-            mouths = mouth_cascade.detectMultiScale(
-                roi_mouth,
-                scaleFactor=1.1,
-                minNeighbors=20,
-                minSize=(25, 15)
-            )
-            # 转换嘴巴坐标到原图
-            for (mx, my, mw, mh) in mouths:
-                result['mouths'].append((x+mx, y+h//2+my, mw, mh))
+        if eye_cascade is not None and mouth_cascade is not None:
+            for (x, y, w, h) in result['faces']:
+                debug_print(f"在人脸区域({x}, {y}, {w}, {h})内检测眼睛和嘴巴")
+                # 提取人脸区域
+                roi_gray = gray[y:y+h, x:x+w]
+                
+                # 检测眼睛
+                eyes = eye_cascade.detectMultiScale(
+                    roi_gray,
+                    scaleFactor=1.1,
+                    minNeighbors=3,  # 降低minNeighbors以提高检测率
+                    minSize=(20, 20)
+                )
+                # 转换眼睛坐标到原图
+                for (ex, ey, ew, eh) in eyes:
+                    result['eyes'].append((x+ex, y+ey, ew, eh))
+                
+                # 检测嘴巴（主要在人脸下半部分）
+                roi_mouth = roi_gray[h//2:, :]  # 只在人脸下半部分检测
+                mouths = mouth_cascade.detectMultiScale(
+                    roi_mouth,
+                    scaleFactor=1.1,
+                    minNeighbors=10,  # 降低minNeighbors以提高检测率
+                    minSize=(25, 15)
+                )
+                # 转换嘴巴坐标到原图
+                for (mx, my, mw, mh) in mouths:
+                    result['mouths'].append((x+mx, y+h//2+my, mw, mh))
+        else:
+            debug_print("眼睛或嘴巴检测器未初始化，跳过相关检测")
 
         # 在每次检测到新特征后更新显示
         if show_preview:
@@ -553,13 +553,16 @@ def detect_features(image_path, show_output=True, show_preview=True, preview_siz
             if result['mouths']: detection_summary.append(f"{len(result['mouths'])}个嘴巴")
             
             if detection_summary:
+                debug_print("检测结果: " + ", ".join(detection_summary))
                 print(f"✓ 已成功检测到特征")
             else:
+                debug_print("未检测到任何特征")
                 print("⚠ 未检测到任何特征")
         
         return result
         
     except Exception as e:
+        debug_print(f'特征检测失败: {str(e)}')
         print(f'⚠ 错误: 特征检测失败 ({str(e)})')
         return {'faces': [], 'profiles': [], 'bodies': [], 'eyes': [], 'mouths': []}
 
@@ -1077,15 +1080,6 @@ def show_welcome_message():
     print("  4. 灵活的尺寸设置：支持像素(px)、毫米(mm)、厘米(cm)")
     print("  5. 批量处理：支持整个文件夹的图片批量转换")
     
-    print("\n可用命令:")
-    print("  1: 默认模式 - 保持图片比例，长边与圆形相切")
-    print("  2: 四角相切模式 - 确保原图完整显示")
-    print("  3: 人脸检测模式 - 自动检测人脸并居中")
-    print("  4: 人脸检测手动模式 - 可以手动选择每张图片的处理方式")
-    print("  5: 高级选项 - 自定义尺寸、DPI等参数")
-    print("  h: 显示帮助信息")
-    print("  q: 退出程序")
-    
     print("\n" + "="*50)
 
 def show_help():
@@ -1124,7 +1118,18 @@ def show_help():
 def get_user_choice():
     """
     获取用户输入的命令
+
     """
+
+    print("\n可用命令:")
+    print("  1: 默认模式 - 保持图片比例，长边与圆形相切")
+    print("  2: 四角相切模式 - 确保原图完整显示")
+    print("  3: 人脸检测模式 - 自动检测人脸并居中")
+    print("  4: 人脸检测手动模式 - 可以手动选择每张图片的处理方式")
+    print("  5: 高级选项 - 自定义尺寸、DPI等参数")
+    print("  h: 显示帮助信息")
+    print("  q: 退出程序")
+
     print("\n请输入命令数字或字母 (h显示帮助, q退出):")
     return input("> ").strip().lower()
 
@@ -1266,44 +1271,56 @@ def main():
     主函数：显示介绍信息，等待用户输入指令后执行相应操作
     """
     try:
+        debug_print("程序开始运行")
         # 显示欢迎信息
         show_welcome_message()
+        debug_print("欢迎信息显示完成")
         
         while True:
+            debug_print("等待用户输入")
             # 获取用户选择
             choice = get_user_choice()
+            debug_print(f"用户选择了: {choice}")
             
             if choice == 'q':
+                debug_print("用户选择退出程序")
                 print("退出程序")
                 break
                 
             elif choice == 'h':
+                debug_print("显示帮助信息")
                 show_help()
                 
             elif choice == '1':
                 # 默认模式
+                debug_print("选择默认模式")
                 print("\n选择了默认模式")
                 run_with_args([])
                 
             elif choice == '2':
                 # 四角相切模式
+                debug_print("选择四角相切模式")
                 print("\n选择了四角相切模式")
                 run_with_args(['--fit'])
                 
             elif choice == '3':
                 # 人脸检测模式
+                debug_print("选择人脸检测模式")
                 print("\n选择了人脸检测模式")
                 run_with_args(['--face'])
                 
             elif choice == '4':
                 # 人脸检测手动模式
+                debug_print("选择人脸检测手动模式")
                 print("\n选择了人脸检测手动模式")
                 run_with_args(['--face', '--manual'])
                 
             elif choice == '5':
                 # 高级选项
+                debug_print("选择高级选项")
                 print("\n选择了高级选项")
                 advanced_args = get_advanced_options()
+                debug_print(f"高级选项参数: {advanced_args}")
                 
                 # 询问额外的模式
                 print("\n请选择处理模式:")
@@ -1312,6 +1329,7 @@ def main():
                 print("3: 人脸检测模式")
                 print("4: 人脸检测手动模式")
                 mode = input("> ").strip()
+                debug_print(f"用户选择处理模式: {mode}")
                 
                 if mode == '2':
                     advanced_args.append('--fit')
@@ -1323,13 +1341,17 @@ def main():
                 run_with_args(advanced_args)
                 
             else:
+                debug_print(f"无效的命令: {choice}")
                 print("无效的命令，请重新输入")
                 
     except KeyboardInterrupt:
+        debug_print("程序被用户终止")
         print("\n程序被用户终止")
     except Exception as e:
+        debug_print(f"程序运行出错: {str(e)}")
         print(f"\n程序运行出错: {str(e)}")
         
 # 程序入口点
 if __name__ == '__main__':
+    debug_print("程序启动")
     main()
